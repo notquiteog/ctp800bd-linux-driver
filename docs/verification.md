@@ -44,8 +44,8 @@ paper. The original USB calibration was correctly sized. The `prepare-pdf`
 command now provides an explicit `letter-top-left` crop for this layout,
 preserving artwork at its original scale. Two corrected 4 x 6 pages were rendered
 and inspected, verified through the CUPS raster/TSPL pipeline, and submitted with
-4 x 6 media and no scaling; CUPS reported completion. Physical size confirmation
-for that corrected job is pending.
+4 x 6 media and no scaling; CUPS reported completion. The printer owner confirmed
+that both corrected labels printed at the proper full 4 x 6 size on 2026-10-26.
 
 This is an initial driver release; other firmware revisions, external print
 servers, other CPU architectures, Windows/macOS clients, and CUPS 3 have not been

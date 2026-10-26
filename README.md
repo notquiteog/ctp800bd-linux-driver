@@ -5,16 +5,19 @@
 An independent, MIT-licensed CUPS 2.x raster driver for the **Core Innovations
 CTP800BD** thermal label printer, identified over USB as **YXWL CTP800BD
 (`5958:0130`)**. Converts PDFs and images through CUPS to TSPL bitmap commands.
-Includes USB setup, Wi-Fi/LAN sharing, tests, and a 4 × 6 inch calibration label.
+Includes USB and Bluetooth setup, Wi-Fi/LAN sharing, tests, and a 4 × 6 inch
+calibration label.
 
 The CTP800BD's documented wireless connection is **Bluetooth, not native Wi-Fi**.
-Wi-Fi printing here means a computer on your network shares the USB printer
-through IPP. The host must remain on and connected to the printer. Bluetooth
-printing is outside this driver's scope.
+Wi-Fi printing here means a computer on your network shares the printer through
+IPP. The host must remain on and connected to the printer by USB or Bluetooth.
+Direct Bluetooth printing uses the printer's Classic Bluetooth Serial Port
+Profile (SPP), through the standard BlueZ CUPS backend.
 
 ```text
 Local applications ── CUPS + this driver ── USB ── CTP800BD
-Wi-Fi/LAN clients ── IPP ── Linux host ── CUPS + this driver ── USB ── CTP800BD
+Local applications ── CUPS + this driver ── Bluetooth SPP ── CTP800BD
+Wi-Fi/LAN clients ── IPP ── Linux host ── driver ── USB/Bluetooth ── CTP800BD
 ```
 
 ## Features
@@ -24,6 +27,7 @@ Wi-Fi/LAN clients ── IPP ── Linux host ── CUPS + this driver ── 
 - Custom labels from 1–4 inches wide and 1–13 inches long.
 - Darkness, speed, gap size, direction, threshold, and ordered dithering controls.
 - Standard CUPS USB transport: no new kernel module or permissive USB rules.
+- Direct Bluetooth SPP printing with pairing and live service checks during setup.
 - IPP sharing and DNS-SD discovery using CUPS and Avahi.
 - Optional raw TCP transport for a **compatible external TSPL print server**.
 - Page size bounds, validated options, white padding bits, and complete-page
@@ -34,7 +38,8 @@ Wi-Fi/LAN clients ── IPP ── Linux host ── CUPS + this driver ── 
 ```sh
 sudo apt-get update
 sudo apt-get install build-essential libcups2-dev libcupsimage2-dev \
-  cups cups-client cups-filters ghostscript python3 python3-pypdf avahi-daemon usbutils
+  cups cups-client cups-filters ghostscript python3 python3-pypdf \
+  avahi-daemon usbutils bluez bluez-cups
 git clone https://github.com/notquiteog/ctp800bd-linux-driver.git
 cd ctp800bd-linux-driver
 make
@@ -73,9 +78,57 @@ the printer instead of automatically repeating a possibly partially printed job.
 Resolve the issue, cancel an unwanted job with `cancel JOB-ID`, and use
 `sudo cupsenable CTP800BD` to resume.
 
+## Direct Bluetooth printing
+
+Install `bluez` and `bluez-cups`, enable Bluetooth, and find the printer's address:
+
+```sh
+sudo systemctl enable --now bluetooth
+bluetoothctl power on
+bluetoothctl --timeout 15 scan on
+ctp800bd bluetooth-devices
+```
+
+The development printer advertises as **Label Printer-xxxx**. Use your own
+printer's Bluetooth address in place of `AA:BB:CC:DD:EE:FF` below. If it is already
+paired, skip the pairing commands. If a PIN is requested, use the printer's
+documented PIN.
+
+```sh
+bluetoothctl pair AA:BB:CC:DD:EE:FF
+bluetoothctl trust AA:BB:CC:DD:EE:FF
+sudo ctp800bd bluetooth --address AA:BB:CC:DD:EE:FF
+ctp800bd status --name CTP800BD-Bluetooth
+lp -d CTP800BD-Bluetooth -o PageSize=w288h432 -o print-scaling=none label.pdf
+```
+
+Choose **Core Innovations CTP800BD (Bluetooth)** or **CTP800BD-Bluetooth** in an
+application's print dialog. This is a separate queue; the USB queue remains
+available. Bluetooth uses the same driver, resolution, page sizes, and label
+options. It also needs a correctly sized PDF: use the PDF preparation command
+below for Letter pages containing 4 x 6 labels.
+
+Setup verifies pairing and queries the live SPP service before creating a queue
+with a URI like `bluetooth://AABBCCDDEEFF/spp`. BlueZ resolves the RFCOMM channel
+for each job; no persistent `/dev/rfcomm` device is needed. The tested printer
+offers SPP on channel 1. BLE-only firmware variants are not supported by this
+transport.
+
+Keep the printer powered on and within Bluetooth range. Disconnect phone apps
+that are using the printer. Send jobs through one queue at a time to avoid USB
+and Bluetooth jobs reaching the same device concurrently. If a Bluetooth job
+stalls while the printer is unavailable, inspect `lpstat -o CTP800BD-Bluetooth`
+and cancel unwanted jobs before reconnecting, to avoid printing them later.
+
+To share this queue over Wi-Fi/LAN as well:
+
+```sh
+sudo ctp800bd share --name CTP800BD-Bluetooth
+```
+
 ## Wi-Fi / network printing
 
-On the Linux computer connected to the printer:
+On the Linux computer connected to the printer (USB queue shown):
 
 ```sh
 sudo ctp800bd share
@@ -172,8 +225,8 @@ The helper crops every page to that exact region without scaling, rasterizing,
 or regenerating label artwork/barcodes. It preserves the input and refuses to
 overwrite an existing output. Review every output page before printing. Use a
 different crop tool if the label is elsewhere, or pages contain receipts or other
-layouts. Crop preparation requires the optional `python3-pypdf` package; USB and
-network printing itself does not.
+layouts. Crop preparation requires the optional `python3-pypdf` package; printing
+itself does not.
 
 For a PDF already sized 4 x 6, `ctp800bd prepare-pdf input.pdf output.pdf`
 validates and normalizes its page boxes. In a graphical PDF viewer, choose
@@ -214,6 +267,9 @@ journalctl -u cups --since '10 minutes ago'
   symptoms in an issue, without uploading shipping addresses or private labels.
 - **Network client cannot connect:** keep the USB host awake, check local network
   isolation/firewall settings, and try its LAN IP instead of `.local`.
+- **Bluetooth printer unavailable:** check power/range, pairing, the `bluez-cups`
+  package, and whether a phone app is connected. Run `bluetoothctl info ADDRESS`
+  and `ctp800bd status --name CTP800BD-Bluetooth`.
 
 Remove the queue before removing its driver:
 
@@ -225,6 +281,8 @@ sudo make uninstall
 
 Server-wide CUPS sharing remains as configured; if no shared printers are needed,
 disable it separately with `sudo cupsctl --no-share-printers`.
+If you created the Bluetooth queue, also remove it with
+`sudo lpadmin -x CTP800BD-Bluetooth` before uninstalling the driver.
 
 ## Development
 

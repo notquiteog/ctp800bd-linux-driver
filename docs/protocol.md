@@ -48,6 +48,20 @@ argument. The program expects raster produced by a CUPS rasterizer. It does not
 implement document-level collation when invoked directly on an arbitrary raster
 file. CUPS also handles PDF layout, USB transport, queueing, and IPP networking.
 
+## Bluetooth transport
+
+The tested printer advertises a Classic Bluetooth Serial Port service (UUID
+`00001101-0000-1000-8000-00805f9b34fb`) on RFCOMM channel 1. Its public SDP browse
+group lists a GATT service instead; querying `sdptool search --bdaddr ADDRESS SP`
+finds the Serial Port record. Setup uses this specific service query.
+
+The driver sends the same TSPL stream through BlueZ's CUPS backend using
+`bluetooth://AABBCCDDEEFF/spp`. The backend discovers the channel through SDP and
+opens an RFCOMM stream. The setup helper checks the installed backend, pairing,
+and live service with bounded timeouts; it does not silently pair arbitrary
+devices, create a persistent rfcomm binding, or substitute USB for Bluetooth.
+This path does not implement a BLE GATT write protocol.
+
 ## References
 
 - [Core Innovations CTP800BD specifications](https://www.coreinnovationsinc.com/product/ctp800bd/)
@@ -57,3 +71,5 @@ file. CUPS also handles PDF layout, USB transport, queueing, and IPP networking.
 - [OpenPrinting CUPS Raster API](https://openprinting.github.io/cups/doc/api-raster.html)
 - [CUPS filter and backend interface](https://openprinting.github.io/cups/doc/api-filter.html)
 - [CUPS printer sharing](https://openprinting.github.io/cups/doc/sharing.html)
+- [BlueZ CUPS backend](https://github.com/bluez/bluez/blob/5.85/profiles/cups/main.c)
+- [BlueZ Serial Port print transport](https://github.com/bluez/bluez/blob/5.85/profiles/cups/spp.c)

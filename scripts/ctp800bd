@@ -2,6 +2,7 @@
 """Set up and inspect the CTP800BD using the system CUPS transports."""
 # SPDX-License-Identifier: MIT
 import argparse
+import os
 import pathlib
 import re
 import shlex
@@ -12,10 +13,13 @@ import sys
 from urllib.parse import urlsplit
 
 PPD = pathlib.Path('/usr/share/ppd/ctp800bd/ctp800bd.ppd')
+BLUETOOTH_BACKENDS = (pathlib.Path('/usr/lib/cups/backend/bluetooth'),
+                      pathlib.Path('/usr/libexec/cups/backend/bluetooth'))
 
 
-def run(args, capture=False):
-    return subprocess.run(args, check=True, text=True, capture_output=capture)
+def run(args, capture=False, timeout=None):
+    return subprocess.run(args, check=True, text=True, capture_output=capture,
+                          timeout=timeout, env={**os.environ, 'LC_ALL': 'C'})
 
 
 def validate_name(value):
@@ -32,6 +36,30 @@ def usb_uris():
 def existing(name):
     result = subprocess.run(['lpstat', '-p', name], capture_output=True)
     return result.returncode == 0
+
+
+def bluetooth_address(value):
+    if not re.fullmatch(r'(?:[0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}', value):
+        raise argparse.ArgumentTypeError('Use a Bluetooth address such as AA:BB:CC:DD:EE:FF.')
+    return value.upper()
+
+
+def bluetooth_uri(address):
+    address = bluetooth_address(address)
+    if not all(shutil.which(tool) for tool in ('bluetoothctl', 'sdptool')) or not any(
+            os.access(path, os.X_OK) for path in BLUETOOTH_BACKENDS):
+        raise ValueError('Bluetooth printing requires BlueZ: sudo apt-get install bluez bluez-cups')
+    info = run(['bluetoothctl', 'info', address], True, timeout=15).stdout
+    if not re.search(r'^\s*Paired:\s+yes\s*$', info, re.MULTILINE):
+        raise ValueError(f'Pair the printer first: bluetoothctl pair {address}')
+    # Query the actual Serial Port service, not the generic browse group:
+    # this printer advertises SPP separately from its public GATT service.
+    services = run(['sdptool', 'search', '--bdaddr', address, 'SP'], True, timeout=15).stdout
+    channel = re.search(r'^\s*Channel:\s+(\d+)\s*$', services, re.MULTILINE)
+    if not channel or not 1 <= int(channel.group(1)) <= 30:
+        raise ValueError('No Bluetooth Serial Port service found. Power on the printer, '
+                         'disconnect its phone app, and try again. BLE-only devices are not supported.')
+    return 'bluetooth://' + address.replace(':', '') + '/spp'
 
 
 def socket_uri(host, port):
@@ -51,8 +79,9 @@ def configure(args, uri):
         raise ValueError(f'Queue {args.name} already exists; choose --name or remove it explicitly with lpadmin -x.')
     if not PPD.is_file():
         raise ValueError('Driver is not installed. Run make && sudo make install first.')
+    description = 'Core Innovations CTP800BD' + (' (Bluetooth)' if uri.startswith('bluetooth://') else '')
     run(['lpadmin', '-p', args.name, '-E', '-v', uri, '-P', str(PPD),
-         '-D', 'Core Innovations CTP800BD', '-o', 'PageSize=w288h432',
+         '-D', description, '-o', 'PageSize=w288h432',
          '-o', 'printer-is-shared=false', '-o', 'printer-error-policy=stop-printer',
          '-o', 'job-sheets-default=none,none'])
     print(f'Created {args.name}. Print a label with: lp -d {args.name} label.pdf')
@@ -101,14 +130,19 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest='command', required=True)
     sub.add_parser('detect', help='Read USB printer identification and CUPS device URI')
+    sub.add_parser('bluetooth-devices', help='List known Bluetooth devices and their addresses')
     p = sub.add_parser('prepare-pdf', help='Prepare a PDF at true 4 x 6 size without printing')
     p.add_argument('source', type=pathlib.Path)
     p.add_argument('destination', type=pathlib.Path)
     p.add_argument('--layout', choices=('4x6', 'letter-top-left'), default='4x6',
                    help='letter-top-left crops a 4 x 6 label from the top left of every Letter page')
-    for cmd in ('usb', 'network', 'share', 'unshare', 'status'):
+    for cmd in ('usb', 'bluetooth', 'network', 'share', 'unshare', 'status'):
         p = sub.add_parser(cmd)
-        p.add_argument('--name', type=validate_name, default='CTP800BD')
+        p.add_argument('--name', type=validate_name,
+                       default='CTP800BD-Bluetooth' if cmd == 'bluetooth' else 'CTP800BD')
+        if cmd == 'bluetooth':
+            p.add_argument('--address', required=True, type=bluetooth_address,
+                           help='Paired printer address from bluetooth-devices')
         if cmd == 'usb':
             p.add_argument('--uri', help='Select one of the exact URIs printed by detect')
         if cmd == 'network':
@@ -116,7 +150,9 @@ def main(argv=None):
             p.add_argument('--port', type=int, default=9100)
     args = parser.parse_args(argv)
     try:
-        if args.command == 'prepare-pdf':
+        if args.command == 'bluetooth-devices':
+            run(['bluetoothctl', 'devices'], timeout=15)
+        elif args.command == 'prepare-pdf':
             count = prepare_pdf(args.source, args.destination, args.layout)
             print(f'Prepared {count} page(s) at 4 x 6 inches without scaling.')
             print('Review the output, then print at actual size:')
@@ -143,6 +179,8 @@ def main(argv=None):
             configure(args, uri)
         elif args.command == 'network':
             configure(args, socket_uri(args.host, args.port))
+        elif args.command == 'bluetooth':
+            configure(args, bluetooth_uri(args.address))
         elif args.command in ('share', 'unshare'):
             if not existing(args.name):
                 raise ValueError(f'Queue {args.name} does not exist; run usb first.')
@@ -155,7 +193,7 @@ def main(argv=None):
                 host = socket.gethostname().split('.')[0] + '.local'
                 uri = f'ipp://{host}:631/printers/{args.name}'
                 print(f'Wi-Fi/LAN clients on the same subnet can use {uri}')
-                print('Keep this computer powered on and the printer connected by USB.')
+                print('Keep this computer powered on and the printer connected.')
                 print('On another Linux computer:')
                 print(shlex.join(['sudo', 'lpadmin', '-p', args.name, '-E', '-v', uri, '-m', 'everywhere']))
                 print('If .local does not resolve, use this computer\'s LAN IP instead.')
@@ -164,7 +202,7 @@ def main(argv=None):
         elif args.command == 'status':
             run(['lpstat', '-p', args.name, '-l'])
             run(['lpstat', '-v', args.name])
-    except (OSError, ValueError, subprocess.CalledProcessError) as error:
+    except (OSError, ValueError, subprocess.SubprocessError) as error:
         print(f'Error: {error}', file=sys.stderr)
         if isinstance(error, subprocess.CalledProcessError) and error.stderr:
             print(error.stderr, file=sys.stderr)

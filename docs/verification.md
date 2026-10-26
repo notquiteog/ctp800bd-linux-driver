@@ -19,6 +19,8 @@ Core Innovations / YXWL CTP800BD USB ID `5958:0130`.
 - Queue setup validation and local-subnet sharing commands with mocked mutations.
 - Explicit Letter-to-4x6 cropping, preservation of original files, validation of
   every page before output, and rendered one-inch geometry after cropping.
+- Bluetooth address validation, pairing and live SPP checks, missing backend,
+  service timeout, unsupported channels, and separate-queue configuration.
 
 ## Hardware and network scope
 
@@ -34,7 +36,8 @@ IPP attributes were queried through the host's LAN address, DNS-SD discovery
 was checked, and a temporary driverless IPP client queue was created successfully
 and removed without printing. A print submitted from a separate Wi-Fi client
 still requires verification. The loopback TCP test is not a physical Wi-Fi test.
-No native Wi-Fi radio or Bluetooth transport is implemented.
+No native Wi-Fi radio is implemented. Direct Bluetooth SPP support is described
+below.
 
 ## Shipping PDF page-size correction
 
@@ -46,6 +49,21 @@ preserving artwork at its original scale. Two corrected 4 x 6 pages were rendere
 and inspected, verified through the CUPS raster/TSPL pipeline, and submitted with
 4 x 6 media and no scaling; CUPS reported completion. The printer owner confirmed
 that both corrected labels printed at the proper full 4 x 6 size on 2026-10-26.
+
+## Bluetooth
+
+The connected printer was already paired and trusted in BlueZ, advertising as
+`Label Printer-xxxx`. A live SDP Serial Port query returned RFCOMM channel 1,
+and an RFCOMM connection succeeded. A separate `CTP800BD-Bluetooth` queue was
+configured with the same PPD and a BlueZ `bluetooth://.../spp` device URI. The
+calibration PDF was submitted to that queue at 4 x 6 size with no scaling, and
+CUPS reported the job completed. On 2026-10-26, the printer owner confirmed that
+the Bluetooth calibration label printed correctly at full 4 x 6 size. USB is
+not a fallback for this queue.
+
+The automated Bluetooth tests mock service discovery and queue configuration;
+they do not replace the physical transport check. BLE-only variants and printing
+over USB and Bluetooth simultaneously have not been validated.
 
 This is an initial driver release; other firmware revisions, external print
 servers, other CPU architectures, Windows/macOS clients, and CUPS 3 have not been

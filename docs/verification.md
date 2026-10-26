@@ -22,12 +22,17 @@ Core Innovations / YXWL CTP800BD USB ID `5958:0130`.
 
 USB enumeration and CUPS discovery were verified on the connected printer.
 The driver was installed with a 4 × 6 queue and IPP sharing enabled. A calibration
-PDF was submitted to that USB queue and CUPS reported the job completed. IPP
-attributes were queried through the host's LAN address, DNS-SD discovery was
-checked, and a temporary driverless IPP client queue was created successfully
-and removed without printing. Physical calibration results and a print submitted from a separate
-Wi-Fi client require user verification. The loopback TCP test is not a physical
-Wi-Fi test. No native Wi-Fi radio or Bluetooth transport is implemented.
+PDF was submitted to that USB queue and CUPS reported the job completed. On
+2026-10-26, the printer owner confirmed that the physical calibration label
+printed correctly: black text on a white background, upright text, and all four
+border edges visible. The one-inch measurement line has not been independently
+measured.
+
+IPP attributes were queried through the host's LAN address, DNS-SD discovery
+was checked, and a temporary driverless IPP client queue was created successfully
+and removed without printing. A print submitted from a separate Wi-Fi client
+still requires verification. The loopback TCP test is not a physical Wi-Fi test.
+No native Wi-Fi radio or Bluetooth transport is implemented.
 
 This is an initial driver release; other firmware revisions, external print
 servers, other CPU architectures, Windows/macOS clients, and CUPS 3 have not been

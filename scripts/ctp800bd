@@ -58,10 +58,54 @@ def configure(args, uri):
     print(f'Created {args.name}. Print a label with: lp -d {args.name} label.pdf')
 
 
+def prepare_pdf(source, destination, layout):
+    """Keep label artwork at its original scale; never guess a crop location."""
+    try:
+        from pypdf import PdfReader, PdfWriter, Transformation
+        from pypdf.errors import PdfReadError
+        from pypdf.generic import RectangleObject
+    except ImportError as error:
+        raise ValueError('PDF preparation requires pypdf: sudo apt-get install python3-pypdf') from error
+    source, destination = pathlib.Path(source), pathlib.Path(destination)
+    if source.resolve() == destination.resolve() or destination.exists():
+        raise ValueError('Choose a new output filename; existing files are never overwritten.')
+    try:
+        reader = PdfReader(source)
+    except PdfReadError as error:
+        raise ValueError(f'Cannot read input PDF: {error}') from error
+    if reader.is_encrypted or not reader.pages:
+        raise ValueError('Use an unencrypted PDF containing at least one page.')
+    writer = PdfWriter()
+    for index, original in enumerate(reader.pages, 1):
+        page = writer.add_page(original)
+        if float(page.get('/UserUnit', 1)) != 1:
+            raise ValueError(f'Page {index}: nonstandard PDF units are not supported.')
+        page.transfer_rotation_to_content()
+        box = page.cropbox
+        expected = (612, 792) if layout == 'letter-top-left' else (288, 432)
+        if abs(float(box.width) - expected[0]) > 0.5 or abs(float(box.height) - expected[1]) > 0.5:
+            raise ValueError(f'Page {index}: expected {expected[0] / 72:g} x {expected[1] / 72:g} inch pages for {layout}. '
+                             'For a Letter PDF with a 4 x 6 label at the top left, use --layout letter-top-left.')
+        left, bottom = float(box.left), float(box.top) - 432
+        page.add_transformation(Transformation().translate(-left, -bottom))
+        for name in ('mediabox', 'cropbox', 'trimbox', 'bleedbox', 'artbox'):
+            setattr(page, name, RectangleObject((0, 0, 288, 432)))
+    writer.add_metadata({'/Title': '4 x 6 thermal labels'})
+    # Validate every page before opening the output, and preserve original data.
+    with destination.open('xb') as stream:
+        writer.write(stream)
+    return len(writer.pages)
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest='command', required=True)
     sub.add_parser('detect', help='Read USB printer identification and CUPS device URI')
+    p = sub.add_parser('prepare-pdf', help='Prepare a PDF at true 4 x 6 size without printing')
+    p.add_argument('source', type=pathlib.Path)
+    p.add_argument('destination', type=pathlib.Path)
+    p.add_argument('--layout', choices=('4x6', 'letter-top-left'), default='4x6',
+                   help='letter-top-left crops a 4 x 6 label from the top left of every Letter page')
     for cmd in ('usb', 'network', 'share', 'unshare', 'status'):
         p = sub.add_parser(cmd)
         p.add_argument('--name', type=validate_name, default='CTP800BD')
@@ -72,7 +116,13 @@ def main(argv=None):
             p.add_argument('--port', type=int, default=9100)
     args = parser.parse_args(argv)
     try:
-        if args.command == 'detect':
+        if args.command == 'prepare-pdf':
+            count = prepare_pdf(args.source, args.destination, args.layout)
+            print(f'Prepared {count} page(s) at 4 x 6 inches without scaling.')
+            print('Review the output, then print at actual size:')
+            print(shlex.join(['lp', '-d', 'CTP800BD', '-o', 'PageSize=w288h432',
+                              '-o', 'print-scaling=none', str(args.destination.resolve())]))
+        elif args.command == 'detect':
             if shutil.which('lsusb'):
                 subprocess.run(['lsusb', '-d', '5958:0130'], check=False)
             uris = usb_uris()

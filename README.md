@@ -34,7 +34,7 @@ Wi-Fi/LAN clients ── IPP ── Linux host ── CUPS + this driver ── 
 ```sh
 sudo apt-get update
 sudo apt-get install build-essential libcups2-dev libcupsimage2-dev \
-  cups cups-client cups-filters ghostscript python3 avahi-daemon usbutils
+  cups cups-client cups-filters ghostscript python3 python3-pypdf avahi-daemon usbutils
 git clone https://github.com/notquiteog/ctp800bd-linux-driver.git
 cd ctp800bd-linux-driver
 make
@@ -151,8 +151,34 @@ lpoptions -p CTP800BD -l
 The filter also accepts integer thresholds 1–255 from command-line job options.
 Keep threshold rendering for shipping barcodes; ordered dithering is for images.
 The PDF page should match the physical label. Letter/A4 shipping documents need
-to be cropped or laid out as labels before printing. Widths over 4 inches are
-rejected instead of silently clipped. Black-mark stock is not implemented.
+to be cropped or laid out as labels before printing. The raster filter rejects
+widths over 4 inches, but applications and CUPS may scale a larger PDF before
+it reaches the filter. Black-mark stock is not implemented.
+
+### USPS labels printing too small
+
+A 4 x 6 label can be embedded in the corner of an 8.5 x 11 inch PDF. Fitting that
+whole Letter page to the printer shrinks the label as well. Changing print scale
+alone does not remove the surrounding blank page.
+
+For PDFs with **one 4 x 6 label at the top left of every portrait Letter page**:
+
+```sh
+ctp800bd prepare-pdf usps.pdf usps-4x6.pdf --layout letter-top-left
+lp -d CTP800BD -o PageSize=w288h432 -o print-scaling=none usps-4x6.pdf
+```
+
+The helper crops every page to that exact region without scaling, rasterizing,
+or regenerating label artwork/barcodes. It preserves the input and refuses to
+overwrite an existing output. Review every output page before printing. Use a
+different crop tool if the label is elsewhere, or pages contain receipts or other
+layouts. Crop preparation requires the optional `python3-pypdf` package; USB and
+network printing itself does not.
+
+For a PDF already sized 4 x 6, `ctp800bd prepare-pdf input.pdf output.pdf`
+validates and normalizes its page boxes. In a graphical PDF viewer, choose
+**4 x 6 inch paper**, **Actual size / 100%**, and **one page per sheet** for the
+prepared file. An application's Letter paper selection overrides queue defaults.
 
 ## Calibration
 
@@ -209,7 +235,9 @@ make DESTDIR="$PWD/build/stage" install
 
 Tests generate CUPS raster fixtures through libcups, exercise input and output
 failures, run a real PDF → CUPS raster → TSPL pipeline, verify copy counts, and
-send data through the CUPS socket backend to a loopback receiver. They do not
+send data through the CUPS socket backend to a loopback receiver. PDF preparation
+tests render synthetic shapes to verify that cropping retains a one-inch scale
+and excludes artwork outside the label. They do not
 contact a physical printer or change CUPS configuration. GitHub Actions runs the
 same checks on Ubuntu 24.04.
 

@@ -17,6 +17,8 @@ Core Innovations / YXWL CTP800BD USB ID `5958:0130`.
 - PDF conversion through the system CUPS rasterizer, including two copies.
 - Actual CUPS socket backend transmission to a loopback TCP receiver.
 - Queue setup validation and local-subnet sharing commands with mocked mutations.
+- Explicit Letter-to-4x6 cropping, preservation of original files, validation of
+  every page before output, and rendered one-inch geometry after cropping.
 
 ## Hardware and network scope
 
@@ -33,6 +35,17 @@ was checked, and a temporary driverless IPP client queue was created successfull
 and removed without printing. A print submitted from a separate Wi-Fi client
 still requires verification. The loopback TCP test is not a physical Wi-Fi test.
 No native Wi-Fi radio or Bluetooth transport is implemented.
+
+## Shipping PDF page-size correction
+
+A reported small-label issue was traced to 4 x 6 artwork positioned at the top
+left of Letter-sized PDF pages, with the print application requesting Letter
+paper. The original USB calibration was correctly sized. The `prepare-pdf`
+command now provides an explicit `letter-top-left` crop for this layout,
+preserving artwork at its original scale. Two corrected 4 x 6 pages were rendered
+and inspected, verified through the CUPS raster/TSPL pipeline, and submitted with
+4 x 6 media and no scaling; CUPS reported completion. Physical size confirmation
+for that corrected job is pending.
 
 This is an initial driver release; other firmware revisions, external print
 servers, other CPU architectures, Windows/macOS clients, and CUPS 3 have not been

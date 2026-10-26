@@ -1,0 +1,126 @@
+#!/usr/bin/env python3
+"""Set up and inspect the CTP800BD using the system CUPS transports."""
+# SPDX-License-Identifier: MIT
+import argparse
+import pathlib
+import re
+import shlex
+import shutil
+import socket
+import subprocess
+import sys
+from urllib.parse import urlsplit
+
+PPD = pathlib.Path('/usr/share/ppd/ctp800bd/ctp800bd.ppd')
+
+
+def run(args, capture=False):
+    return subprocess.run(args, check=True, text=True, capture_output=capture)
+
+
+def validate_name(value):
+    if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_-]{0,62}', value):
+        raise argparse.ArgumentTypeError('Use a queue name with letters, numbers, _ or -.')
+    return value
+
+
+def usb_uris():
+    return [line.split()[1] for line in run(['lpinfo', '-v'], True).stdout.splitlines()
+            if len(line.split()) >= 2 and line.split()[1].startswith('usb://YXWL/CTP800BD')]
+
+
+def existing(name):
+    result = subprocess.run(['lpstat', '-p', name], capture_output=True)
+    return result.returncode == 0
+
+
+def socket_uri(host, port):
+    if not host or re.search(r'[\s/@?#]', host) or host.startswith('-'):
+        raise ValueError('Provide a hostname or IP address without a URL or path.')
+    # urlsplit validates bracket placement and IPv6 literals for us.
+    authority = f'[{host}]' if ':' in host and not host.startswith('[') else host
+    uri = f'socket://{authority}:{port}'
+    if not urlsplit(uri).hostname or not 1 <= port <= 65535:
+        raise ValueError('Invalid network host or port.')
+    # Raw USB bridges often implement neither SNMP nor a response/EOF protocol.
+    return uri + '/?waiteof=false&snmp=false&contimeout=15'
+
+
+def configure(args, uri):
+    if existing(args.name):
+        raise ValueError(f'Queue {args.name} already exists; choose --name or remove it explicitly with lpadmin -x.')
+    if not PPD.is_file():
+        raise ValueError('Driver is not installed. Run make && sudo make install first.')
+    run(['lpadmin', '-p', args.name, '-E', '-v', uri, '-P', str(PPD),
+         '-D', 'Core Innovations CTP800BD', '-o', 'PageSize=w288h432',
+         '-o', 'printer-is-shared=false', '-o', 'printer-error-policy=stop-printer',
+         '-o', 'job-sheets-default=none,none'])
+    print(f'Created {args.name}. Print a label with: lp -d {args.name} label.pdf')
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    sub = parser.add_subparsers(dest='command', required=True)
+    sub.add_parser('detect', help='Read USB printer identification and CUPS device URI')
+    for cmd in ('usb', 'network', 'share', 'unshare', 'status'):
+        p = sub.add_parser(cmd)
+        p.add_argument('--name', type=validate_name, default='CTP800BD')
+        if cmd == 'usb':
+            p.add_argument('--uri', help='Select one of the exact URIs printed by detect')
+        if cmd == 'network':
+            p.add_argument('--host', required=True, help='TSPL-capable TCP print server (not a shared IPP queue)')
+            p.add_argument('--port', type=int, default=9100)
+    args = parser.parse_args(argv)
+    try:
+        if args.command == 'detect':
+            if shutil.which('lsusb'):
+                subprocess.run(['lsusb', '-d', '5958:0130'], check=False)
+            uris = usb_uris()
+            for uri in uris:
+                print(uri)
+            if not uris:
+                raise ValueError('No CTP800BD found by CUPS. Connect USB and power on the printer.')
+        elif args.command == 'usb':
+            uris = usb_uris()
+            if args.uri:
+                if args.uri not in uris:
+                    raise ValueError('--uri must match a connected CTP800BD reported by detect.')
+                uri = args.uri
+            elif len(uris) == 1:
+                uri = uris[0]
+            else:
+                raise ValueError('Expected one printer; run detect and select --uri if multiple are connected.')
+            configure(args, uri)
+        elif args.command == 'network':
+            configure(args, socket_uri(args.host, args.port))
+        elif args.command in ('share', 'unshare'):
+            if not existing(args.name):
+                raise ValueError(f'Queue {args.name} does not exist; run usb first.')
+            share = args.command == 'share'
+            if share:
+                # CUPS enables local-subnet printing; remote administration is unchanged.
+                run(['cupsctl', '--share-printers'])
+            run(['lpadmin', '-p', args.name, '-o', f'printer-is-shared={str(share).lower()}'])
+            if share:
+                host = socket.gethostname().split('.')[0] + '.local'
+                uri = f'ipp://{host}:631/printers/{args.name}'
+                print(f'Wi-Fi/LAN clients on the same subnet can use {uri}')
+                print('Keep this computer powered on and the printer connected by USB.')
+                print('On another Linux computer:')
+                print(shlex.join(['sudo', 'lpadmin', '-p', args.name, '-E', '-v', uri, '-m', 'everywhere']))
+                print('If .local does not resolve, use this computer\'s LAN IP instead.')
+            else:
+                print(f'{args.name} is no longer shared. Server-wide sharing settings are unchanged.')
+        elif args.command == 'status':
+            run(['lpstat', '-p', args.name, '-l'])
+            run(['lpstat', '-v', args.name])
+    except (OSError, ValueError, subprocess.CalledProcessError) as error:
+        print(f'Error: {error}', file=sys.stderr)
+        if isinstance(error, subprocess.CalledProcessError) and error.stderr:
+            print(error.stderr, file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

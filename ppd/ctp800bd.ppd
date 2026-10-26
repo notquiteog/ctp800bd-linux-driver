@@ -1,0 +1,152 @@
+*PPD-Adobe: "4.3"
+*% SPDX-License-Identifier: MIT
+*FormatVersion: "4.3"
+*FileVersion: "0.1.0"
+*LanguageVersion: English
+*LanguageEncoding: ISOLatin1
+*PCFileName: "CTP800BD.PPD"
+*Manufacturer: "Core Innovations"
+*Product: "(CTP800BD)"
+*ModelName: "Core Innovations CTP800BD"
+*ShortNickName: "CTP800BD 203dpi"
+*NickName: "Core Innovations CTP800BD - Open Linux Driver"
+*1284DeviceID: "MFG:YXWL;MDL:CTP800BD;"
+*PSVersion: "(3010.000) 0"
+*LanguageLevel: "3"
+*ColorDevice: False
+*DefaultColorSpace: Gray
+*FileSystem: False
+*Throughput: "20"
+*LandscapeOrientation: Plus90
+*TTRasterizer: Type42
+*cupsVersion: 2.0
+*cupsManualCopies: True
+*cupsFilter: "application/vnd.cups-raster 0 rastertoctp800bd"
+*OpenUI *Resolution/Resolution: PickOne
+*OrderDependency: 10 AnySetup *Resolution
+*DefaultResolution: 203dpi
+*Resolution 203dpi/203 DPI: "<</HWResolution[203 203]>>setpagedevice"
+*CloseUI: *Resolution
+*OpenUI *ColorModel/Color Mode: PickOne
+*OrderDependency: 10 AnySetup *ColorModel
+*DefaultColorModel: Gray
+*ColorModel Gray/Grayscale: "<</cupsColorSpace 0/cupsColorOrder 0/cupsBitsPerColor 8>>setpagedevice"
+*CloseUI: *ColorModel
+*OpenUI *PageSize/Label Size: PickOne
+*OrderDependency: 10 AnySetup *PageSize
+*DefaultPageSize: w288h432
+*PageSize w288h432/4 x 6 in: "<</PageSize[288 432]/ImagingBBox null>>setpagedevice"
+*PageSize w283h425/100 x 150 mm: "<</PageSize[283.464567 425.19685]/ImagingBBox null>>setpagedevice"
+*PageSize w288h288/4 x 4 in: "<</PageSize[288 288]/ImagingBBox null>>setpagedevice"
+*PageSize w288h144/4 x 2 in: "<</PageSize[288 144]/ImagingBBox null>>setpagedevice"
+*PageSize w216h144/3 x 2 in: "<</PageSize[216 144]/ImagingBBox null>>setpagedevice"
+*PageSize w144h288/2 x 4 in: "<</PageSize[144 288]/ImagingBBox null>>setpagedevice"
+*PageSize w144h72/2 x 1 in: "<</PageSize[144 72]/ImagingBBox null>>setpagedevice"
+*CloseUI: *PageSize
+*OpenUI *PageRegion/Label Size: PickOne
+*OrderDependency: 10 AnySetup *PageRegion
+*DefaultPageRegion: w288h432
+*PageRegion w288h432/4 x 6 in: "<</PageSize[288 432]/ImagingBBox null>>setpagedevice"
+*PageRegion w283h425/100 x 150 mm: "<</PageSize[283.464567 425.19685]/ImagingBBox null>>setpagedevice"
+*PageRegion w288h288/4 x 4 in: "<</PageSize[288 288]/ImagingBBox null>>setpagedevice"
+*PageRegion w288h144/4 x 2 in: "<</PageSize[288 144]/ImagingBBox null>>setpagedevice"
+*PageRegion w216h144/3 x 2 in: "<</PageSize[216 144]/ImagingBBox null>>setpagedevice"
+*PageRegion w144h288/2 x 4 in: "<</PageSize[144 288]/ImagingBBox null>>setpagedevice"
+*PageRegion w144h72/2 x 1 in: "<</PageSize[144 72]/ImagingBBox null>>setpagedevice"
+*CloseUI: *PageRegion
+*DefaultImageableArea: w288h432
+*ImageableArea w288h432: "0 0 288 432"
+*ImageableArea w283h425: "0 0 283.464567 425.19685"
+*ImageableArea w288h288: "0 0 288 288"
+*ImageableArea w288h144: "0 0 288 144"
+*ImageableArea w216h144: "0 0 216 144"
+*ImageableArea w144h288: "0 0 144 288"
+*ImageableArea w144h72: "0 0 144 72"
+*DefaultPaperDimension: w288h432
+*PaperDimension w288h432: "288 432"
+*PaperDimension w283h425: "283.464567 425.19685"
+*PaperDimension w288h288: "288 288"
+*PaperDimension w288h144: "288 144"
+*PaperDimension w216h144: "216 144"
+*PaperDimension w144h288: "144 288"
+*PaperDimension w144h72: "144 72"
+*VariablePaperSize: True
+*HWMargins: 0 0 0 0
+*MaxMediaWidth: "288"
+*MaxMediaHeight: "936"
+*CustomPageSize True: "pop pop pop <</PageSize[5 -2 roll]/ImagingBBox null>>setpagedevice"
+*ParamCustomPageSize Width: 1 points 72 288
+*ParamCustomPageSize Height: 2 points 72 936
+*ParamCustomPageSize WidthOffset: 3 points 0 0
+*ParamCustomPageSize HeightOffset: 4 points 0 0
+*ParamCustomPageSize Orientation: 5 int 0 0
+*OpenUI *MediaType/Media Type: PickOne
+*OrderDependency: 20 AnySetup *MediaType
+*DefaultMediaType: Labels
+*MediaType Labels/Gap Labels: ""
+*MediaType Continuous/Continuous: ""
+*CloseUI: *MediaType
+*OpenUI *Darkness/Darkness: PickOne
+*OrderDependency: 20 AnySetup *Darkness
+*DefaultDarkness: 8
+*Darkness 0/0: ""
+*Darkness 1/1: ""
+*Darkness 2/2: ""
+*Darkness 3/3: ""
+*Darkness 4/4: ""
+*Darkness 5/5: ""
+*Darkness 6/6: ""
+*Darkness 7/7: ""
+*Darkness 8/8: ""
+*Darkness 9/9: ""
+*Darkness 10/10: ""
+*Darkness 11/11: ""
+*Darkness 12/12: ""
+*Darkness 13/13: ""
+*Darkness 14/14: ""
+*Darkness 15/15: ""
+*CloseUI: *Darkness
+*OpenUI *PrintSpeed/Speed (inches per second): PickOne
+*OrderDependency: 20 AnySetup *PrintSpeed
+*DefaultPrintSpeed: 3
+*PrintSpeed 1/1: ""
+*PrintSpeed 2/2: ""
+*PrintSpeed 3/3: ""
+*PrintSpeed 4/4: ""
+*PrintSpeed 5/5: ""
+*CloseUI: *PrintSpeed
+*OpenUI *LabelGap/Label Gap (mm): PickOne
+*OrderDependency: 20 AnySetup *LabelGap
+*DefaultLabelGap: 3
+*LabelGap 0/0: ""
+*LabelGap 1/1: ""
+*LabelGap 2/2: ""
+*LabelGap 3/3: ""
+*LabelGap 4/4: ""
+*LabelGap 5/5: ""
+*LabelGap 6/6: ""
+*CloseUI: *LabelGap
+*OpenUI *Threshold/Black Threshold: PickOne
+*OrderDependency: 20 AnySetup *Threshold
+*DefaultThreshold: 128
+*Threshold 64/64: ""
+*Threshold 96/96: ""
+*Threshold 128/128: ""
+*Threshold 160/160: ""
+*Threshold 192/192: ""
+*Threshold 224/224: ""
+*CloseUI: *Threshold
+*OpenUI *Dither/Image Rendering: PickOne
+*OrderDependency: 20 AnySetup *Dither
+*DefaultDither: Threshold
+*Dither Threshold/Text and Barcodes: ""
+*Dither Ordered/Ordered Dither (Images): ""
+*CloseUI: *Dither
+*OpenUI *Direction/Print Direction: PickOne
+*OrderDependency: 20 AnySetup *Direction
+*DefaultDirection: 0
+*Direction 0/Normal: ""
+*Direction 1/Rotate 180 degrees: ""
+*CloseUI: *Direction
+*DefaultFont: Courier
+*Font Courier: Standard "(004.000)" Standard ROM
